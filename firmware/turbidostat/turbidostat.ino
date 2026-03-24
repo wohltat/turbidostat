@@ -5,12 +5,12 @@
  *
  */ 
  
-#define TURBIDOSTAT_VERSION  "0.405"
+#define TURBIDOSTAT_VERSION  "0.406"
 #define NO_PORTB_PINCHANGES // to indicate that port b will not be used for pin change interrupts
 #define NO_PORTC_PINCHANGES // to indicate that port c will not be used for pin change interrupts
 
-
-#include "PinChangeInt.h"
+#include "PinChangeInterrupt.h"
+//#include "PinChangeInt.h"
 #include <EEPROM.h>
 #include <avr/eeprom.h>
 #include <SerialCommand.h>
@@ -760,7 +760,7 @@ void setup()
   // sensors  
   pinMode(SENSOR_A_PIN, INPUT_PULLUP);
   attachInterrupt(0, isrSensorA, RISING);
-
+ 
   pinMode(SENSOR_B_PIN, INPUT_PULLUP);
   attachInterrupt(1, isrSensorB, RISING);  
 
@@ -774,7 +774,7 @@ void setup()
   airpumpOff();
   // stirrer
   pinMode(HALLPIN, INPUT_PULLUP);
-  PCintPort::attachInterrupt(HALLPIN, &isr_hall_sensor, FALLING); 
+  attachPCINT(digitalPinToPCINT(HALLPIN), isr_hall_sensor, FALLING);
   pinMode(STIRRERPIN, OUTPUT); 
   analogWrite(STIRRERPIN, stirrerOut);
 
