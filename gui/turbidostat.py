@@ -18,8 +18,6 @@ import string
 from pylab import array, figure, imag, isnan, log, log10, matrix, inv, nan, r_, sqrt, plot, subplot, xlabel, ylabel, xlim, ylim, zeros, clip
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx
-# from scipy.stats import linregress
-
 import wxturbidostat
 
 
@@ -65,7 +63,7 @@ def ekf(fstate, x, P, hmeas, z, Q, R, I0=None):
     """Calculate extended Kalman Filter Step."""
     # (x1,A) = jaccsd(fstate,x);    #nonlinear update and linearization at current state
     x1 = fstate(x)
-    A = matrix(r_[[[float(x[1]), float(x[0])], [0.0, 1.0]]])
+    A = matrix(r_[[[x[1].item(), x[0].item()], [0.0, 1.0]]])
 
     A = matrix(A)
     P = matrix(P)
@@ -73,7 +71,7 @@ def ekf(fstate, x, P, hmeas, z, Q, R, I0=None):
     P = A * P * A.T + Q              # partial update
     # z1, H = jaccsd(hmeas, x1)    # nonlinear measurement and linearization
     z1 = hmeas(x1)
-    H = matrix(r_[-(I0 * log(10)) / 10**float(x1[0]), 0])
+    H = matrix(r_[-(I0 * log(10)) / 10**x1[0].item(), 0])
 
     P12 = P * H.T                  # cross covariance
 
@@ -926,7 +924,7 @@ class TurbidostatGUI(wxturbidostat.TsFrame):
                     msg_printable = ''.join(s for s in msg if s in string.printable)
                     sys.stdout.write(msg)
                     self.logToTxtFile(msg_printable)
-                    # wx.CallAfter(self.m_txtConsole.AppendText, msg_printable)
+                    wx.CallAfter(self.m_txtConsole.AppendText, msg_printable)
                     msg = ''
                 sleep(0.001)
 
