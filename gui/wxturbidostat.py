@@ -345,6 +345,7 @@ class TsFrame ( wx.Frame ):
 		self.Layout()
 
 		# Connect Events
+		self.Bind( wx.EVT_CLOSE, self.OnClose )
 		self.m_cmbPort.Bind( wx.EVT_KILL_FOCUS, self.OnPortKillFocus )
 		self.m_cmbPort.Bind( wx.EVT_SET_FOCUS, self.OnPortFocus )
 		self.m_cmbPort.Bind( wx.EVT_TEXT_ENTER, self.OnPortEnter )

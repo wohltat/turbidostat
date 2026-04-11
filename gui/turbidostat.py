@@ -15,7 +15,7 @@ from glob import glob
 import datetime
 import string
 # from pylab import *
-from pylab import array, figure, imag, isnan, log, log10, matrix, inv, nan, r_, sqrt, plot, subplot, xlabel, ylabel, xlim, ylim, zeros, clip
+from pylab import array, Figure, imag, isnan, log, log10, matrix, inv, nan, r_, sqrt, plot, subplot, xlabel, ylabel, xlim, ylim, zeros, clip
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx
 import wxturbidostat
@@ -103,7 +103,7 @@ class TurbidostatGUI(wxturbidostat.TsFrame):
         self.laserPower = None
         self.firmware_version = None
 
-        self.gui_version = 0.404
+        self.gui_version = 0.406
         self.SetTitle('Turbidostat (gui: v' + str(self.gui_version) + ')')
         self.Show(True)
 
@@ -137,7 +137,6 @@ class TurbidostatGUI(wxturbidostat.TsFrame):
         self.data_source = None
         self.findSerialPorts()
 
-        # import ipdb; ipdb.set_trace()
 
         # # check for product string
         # import usb
@@ -182,11 +181,11 @@ class TurbidostatGUI(wxturbidostat.TsFrame):
         self.OnKalmanReset(None)
 
         # PLOT
-        fig = figure()
+        self.fig = Figure()
         # fig.patch.set_facecolor((214/255, 214/255, 214/255))
-        fig.patch.set_facecolor(array(self.m_pnlGraphs.GetBackgroundColour()[0:3]) / 255.0)
+        self.fig.patch.set_facecolor(array(self.m_pnlGraphs.GetBackgroundColour()[0:3]) / 255.0)
 
-        self.canvas = FigureCanvas(self.m_pnlGraphs, -1, fig)
+        self.canvas = FigureCanvas(self.m_pnlGraphs, -1, self.fig)
         self.toolbar = NavigationToolbar2Wx(self.canvas)
         self.toolbar.Realize()
         # self.toolbar.SetSize(wx.Size(-1, 10))
@@ -199,12 +198,9 @@ class TurbidostatGUI(wxturbidostat.TsFrame):
         # self.toolbar.DeleteToolByPos(0)
         # self.toolbar.DeleteToolByPos(0)
 
-        # add
-        resettool = self.toolbar.AddLabelTool(id=wx.ID_ANY, label='reset', bitmap=wx.Bitmap('./res/reset.png')) # deprecated
-        dir(self.toolbar.AddTool)
-        # resettool = self.toolbar.AddTool(ToolId=wx.ID_ANY, label='reset', bitmap=wx.Bitmap('./res/reset.png'), 
-        #     shortHelp='Reset graph and Kalman filter',
-        #     longHelp='Reset the Kalman filter by reseting estimation uncertainties')
+        pos=self.toolbar.GetToolsCount() - 2
+        # resettool = self.toolbar.AddTool(int(wx.ID_ANY), 'reset', wx.Bitmap('./res/reset.png'), 'Reset graph and Kalman filter')
+        resettool = self.toolbar.InsertTool(pos, int(wx.ID_ANY), 'reset', wx.Bitmap('./res/reset.png'), shortHelp='Reset graph and Kalman filter')
         self.toolbar.Realize()
         self.Bind(wx.EVT_TOOL, self.OnKalmanReset, resettool)
 
@@ -216,13 +212,18 @@ class TurbidostatGUI(wxturbidostat.TsFrame):
         self.m_pnlGraphs.SetSizer(self.sizer)
         self.m_pnlGraphs.Fit()
 
-        subplot(211)
-        self.ax = []
-        ylim_bottom, ylim_top = (-1, 3)
-        self.ax.append(plot(0, 'b', ylim_bottom, 'r--', ylim_top, 'r--', 0, 'g-', 0, 'r--', 0, 'r--'))
-        subplot(212)
-        ylim_bottom, ylim_top = (-1, 1)
-        self.ax.append(plot(0, 'k', 0, 'b', ylim_bottom, 'r--', ylim_top, 'r--'))
+        self.ax = [[],[]]
+        self.ax0 = self.fig.add_subplot(211)
+        self.ax0.set_ylim(-1, 3)
+
+        self.ax[0] = self.ax0.plot(0, 'b', 0, 'r--', 0, 'r--', 0, 'g-', 0, 'r--', 0, 'r--')
+
+        # Create the second axes
+        self.ax1 = self.fig.add_subplot(212)
+        self.ax1.set_ylim(-1, 1)
+
+        self.ax[1] = self.ax1.plot(0, 'k', 0, 'b', 0, 'r--', 0, 'r--')
+        # import ipdb; ipdb.set_trace()
         # hold(True)
         # show()
 
@@ -573,14 +574,13 @@ class TurbidostatGUI(wxturbidostat.TsFrame):
         self.sendCmd(self.m_txtConsoleInput.GetValue())
 
     def OnClose(self, event):
-        self.done = True
-        # print('done: ' + str(self.done))
         dlg = wx.MessageDialog(self,
             "Do you really want to close this application?",
             "Confirm Exit", wx.OK|wx.CANCEL|wx.ICON_QUESTION)
         result = dlg.ShowModal()
         dlg.Destroy()
         if result == wx.ID_OK:
+            self.done = True
             self.Destroy()
 
     # def OnPortFocus(self, event):
@@ -682,46 +682,46 @@ class TurbidostatGUI(wxturbidostat.TsFrame):
         self.thread_lock.release()
 
     def plot(self):
-        # if self.dummy_mode == False or (self.dummy_mode and (self.time % 0.5 == 0)):
-        if self.dummy_mode == False or (self.dummy_mode):
-            self.thread_lock.acquire()
-            subplot(211)
-            self.ax[0][0].set_xdata(self.time_list)
-            self.ax[0][0].set_ydata(self.dbrate_list)
-            self.ax[0][1].set_xdata(self.time_list)
-            self.ax[0][1].set_ydata(r_[self.dbrate_list] - r_[self.dbrate_uncertainty_list])
-            self.ax[0][2].set_xdata(self.time_list)
-            self.ax[0][2].set_ydata(r_[self.dbrate_list] + r_[self.dbrate_uncertainty_list])
-            xlim(0, self.time_list[-1])
-            # ylim(min(r_[self.dbrate_list] - r_[self.dbrate_uncertainty_list]),
-            #                    max(r_[self.dbrate_list] + r_[self.dbrate_uncertainty_list]))
-            # ylim(min(r_[self.dbrate_list]), max(r_[self.dbrate_list] + r_[self.dbrate_uncertainty_list]))
-            ylabel('rate [doublings/hr]')
+        if self.dummy_mode == False or (self.dummy_mode and (self.time % 0.5 == 0)):
+            if self.dummy_mode == False or (self.dummy_mode):
+                self.thread_lock.acquire()
+                # subplot(211)
+                self.ax[0][0].set_xdata(self.time_list)
+                self.ax[0][0].set_ydata(self.dbrate_list)
+                self.ax[0][1].set_xdata(self.time_list)
+                self.ax[0][1].set_ydata(r_[self.dbrate_list] - r_[self.dbrate_uncertainty_list])
+                self.ax[0][2].set_xdata(self.time_list)
+                self.ax[0][2].set_ydata(r_[self.dbrate_list] + r_[self.dbrate_uncertainty_list])
+                self.ax0.set_xlim(0, max(self.time_list[-1], 0.01))
+                # ylim(min(r_[self.dbrate_list] - r_[self.dbrate_uncertainty_list]),
+                #                    max(r_[self.dbrate_list] + r_[self.dbrate_uncertainty_list]))
+                # ylim(min(r_[self.dbrate_list]), max(r_[self.dbrate_list] + r_[self.dbrate_uncertainty_list]))
+                self.ax0.set_ylabel('rate [doublings/hr]')
 
-            subplot(212)
-            self.ax[1][0].set_xdata(self.time_list)
-            self.ax[1][0].set_ydata(self.measurement_list)
-            self.ax[1][1].set_xdata(self.time_list)
-            self.ax[1][1].set_ydata(self.state_list)
-            self.ax[1][2].set_xdata(self.time_list)
-            self.ax[1][2].set_ydata(r_[self.state_list] - sqrt(r_[self.uncertainty_list]))
-            self.ax[1][3].set_xdata(self.time_list)
-            self.ax[1][3].set_ydata(r_[self.state_list] + sqrt(r_[self.uncertainty_list]))
-            xlim(0, self.time_list[-1])
-            # ylim(min(self.measurement_list), max(r_[self.measurement_list] + sqrt(r_[self.uncertainty_list])))
-            xlabel('time [min]')
-            ylabel('OD')
-            self.canvas.draw()
-            # self.Fit)
-            self.thread_lock.release()
+                # subplot(212)
+                self.ax[1][0].set_xdata(self.time_list)
+                self.ax[1][0].set_ydata(self.measurement_list)
+                self.ax[1][1].set_xdata(self.time_list)
+                self.ax[1][1].set_ydata(self.state_list)
+                self.ax[1][2].set_xdata(self.time_list)
+                self.ax[1][2].set_ydata(r_[self.state_list] - sqrt(r_[self.uncertainty_list]))
+                self.ax[1][3].set_xdata(self.time_list)
+                self.ax[1][3].set_ydata(r_[self.state_list] + sqrt(r_[self.uncertainty_list]))
+                self.ax1.set_xlim(0, max(self.time_list[-1], 0.01))
+                # ylim(min(self.measurement_list), max(r_[self.measurement_list] + sqrt(r_[self.uncertainty_list])))
+                self.ax1.set_xlabel('time [min]')
+                self.ax1.set_ylabel('OD')
+                self.canvas.draw()
+                # self.Fit)
+                self.thread_lock.release()
 
-            if self.OD < -110:
-                self.OD = 'n/A(-)'
-                OD_1cm = 'n/A(-)'
-            # else:
-                # OD_1cm = self.OD * self.OD1cm_factor
-            self.m_txtOD.SetLabel(str(round(float(self.OD), 3)))
-            # self.m_txtOD1cm.SetLabel(str(round(OD_1cm, 3)))
+                if self.OD < -110:
+                    self.OD = 'n/A(-)'
+                    OD_1cm = 'n/A(-)'
+                # else:
+                    # OD_1cm = self.OD * self.OD1cm_factor
+                self.m_txtOD.SetLabel(str(round(float(self.OD), 3)))
+                # self.m_txtOD1cm.SetLabel(str(round(OD_1cm, 3)))
 
     def updateTitle(self):
         self.SetTitle(
